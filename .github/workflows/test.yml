@@ -20,10 +20,10 @@ jobs:
             "5.20",
             "5.18",
             "5.16",
-            "5.14",
-            "5.12",
-            "5.10"
           ]
+        include:
+          - perl: 5.40
+            coverage: true
     name: Perl ${{ matrix.perl }}
     steps:
       - uses: actions/checkout@v3
@@ -32,7 +32,16 @@ jobs:
         with:
           perl-version: ${{ matrix.perl }}
       - name: Install dependencies
-        run: cpanm -nq --installdeps --with-develop --with-recommends .
-      - name: Run test
-        run: prove -lr t
+        run: cpm install -g --with-all
+      - run: perl Build.PL
+      - run: ./Build
+      - run: ./Build test
 
+
+      - name: Run coverage
+        if: ${{ matrix.coverage }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cpm install -g Devel::Cover::Report::Coveralls
+          cover -test -report coveralls -ignore_re '^/opt'
