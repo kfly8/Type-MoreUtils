@@ -6,13 +6,14 @@ our $VERSION = "0.01";
 
 use parent qw(Exporter::Tiny);
 
-our @EXPORT_OK = qw(keyof valueof tuniq tduplicates Never Record Partial Required Pick Omit);
+our @EXPORT_OK = qw(keyof valueof tuniq tduplicates Never Record Partial Required Pick Omit Exclude Extract);
 
 use Carp qw(croak);
 use Scalar::Util qw(refaddr);
 
 use Types::Standard -types;
 use Types::Equal qw(Eq);
+use Type::Utils qw(union);
 
 sub keyof($) {
     my $T = Types::TypeTiny::to_TypeTiny( shift );
@@ -243,6 +244,31 @@ sub Omit($$) {
 
     my %keymap = map { $_ => 1 } valueof $Keys;
     dict_grep { not exists $keymap{$a} } $T;
+}
+
+sub union_grep(&$) {
+    my ($code, $T) = ($_[0], Types::TypeTiny::to_TypeTiny($_[1]));
+
+    unless ($T->isa('Type::Tiny::Union')) {
+        croak "must be Union type";
+    }
+
+    my @items = grep { $code->($_) } valueof($T);
+    union[ map { ref $_ ? $_ : Eq[$_] } @items ];
+}
+
+sub Exclude($$) {
+    my ($T, $Keys) = _to_types(@_);
+
+    my %keymap = map { $_ => 1 } valueof $Keys;
+    union_grep { not exists $keymap{$_} } $T;
+}
+
+sub Extract($$) {
+    my ($T, $Keys) = _to_types(@_);
+
+    my %keymap = map { $_ => 1 } valueof $Keys;
+    union_grep { exists $keymap{$_} } $T;
 }
 
 sub _to_types {
