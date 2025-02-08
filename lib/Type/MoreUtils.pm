@@ -72,19 +72,21 @@ use Type::Utils qw(union type);
 
 =head2 key_of($Type)
 
-C<key_of> function returns the keys of a Dict type.
+C<key_of> function returns the keys of a type.
+
+Given a Dict type, it returns the keys of the type.
 
     my $T = Dict[foo => Int, bar => Str];
     my @keys = key_of($T);
     # => ('foo', 'bar')
 
-Given a union type, it will return the keys of all the types in the union.
+Given a union type, it returns the keys of all the types in the union.
 
     my $T = Dict[foo => Int, bar => Str] | Dict[baz => Int, qux => Str];
     my @keys = key_of($T);
     # => ('foo', 'bar', 'baz', 'qux')
 
-Given an intersection type, it will return the keys of common keys in all the types in the intersection.
+Given an intersection type, it returns the keys of common keys in all the types in the intersection.
 
     my $T = Dict[foo => Int, bar => Int] & Dict[bar => Str];
     my @keys = key_of($T);
@@ -132,7 +134,15 @@ sub key_of($) {
 
 =head2 value_of($Type)
 
-C<value_of> function returns the values of a Dict type.
+C<value_of> function returns the values of a type.
+
+Given a Enum type, it returns the values of the type.
+
+    my $T = Enum[qw(foo bar)];
+    my @values = value_of($T);
+    # => ('foo', 'bar')
+
+Given a Dict type, it returns the values of the type.
 
     my $T = Dict[foo => Int, bar => Str];
     my @values = value_of($T);
