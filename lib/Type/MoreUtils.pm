@@ -36,11 +36,11 @@ our $VERSION = "0.01";
 use parent qw(Exporter::Tiny);
 
 our @EXPORT_FUNCTIONS = qw(
-    key_of
-    value_of
-    match_for
+    tkeys
+    tvalues
     tuniq
     tduplicates
+    match_for
 );
 
 our @EXPORT_TYPES = qw(
@@ -70,42 +70,38 @@ use Type::Utils qw(union type);
 
 =pod
 
-=head2 key_of($Type)
+=head2 tkeys $Type
 
-C<key_of> function returns the keys of a type.
+C<tkeys> function returns the keys of a type.
 
 Given a Dict type, it returns the keys of the type.
 
     my $T = Dict[foo => Int, bar => Str];
-    my @keys = key_of($T);
+    tkeys $T
     # => ('foo', 'bar')
 
 Given a union type, it returns the keys of all the types in the union.
 
-    my $T = Dict[foo => Int, bar => Str] | Dict[baz => Int, qux => Str];
-    my @keys = key_of($T);
-    # => ('foo', 'bar', 'baz', 'qux')
+    my $T = Dict[foo => Int, bar => Str] | Dict[baz => Int];
+    tkeys $T
+    # => ('foo', 'bar', 'baz')
 
 Given an intersection type, it returns the keys of common keys in all the types in the intersection.
 
-    my $T = Dict[foo => Int, bar => Int] & Dict[bar => Str];
-    my @keys = key_of($T);
+    my $T = Dict[foo => Int, bar => Int] & Dict[bar => Int];
+    tkeys $T
     # => ('bar')
 
 =cut
 
-sub key_of($) {
+sub tkeys($) {
     my $T = Types::TypeTiny::to_TypeTiny( shift );
 
-    my $keys = [];
-
     if ($T->isa('Type::Tiny::Union')) {
-        my @keys = map { &key_of($_) } @{$T->type_constraints};
-        $keys = [ tuniq(@keys) ];
+        return tuniq( map { &tkeys($_) } @{$T->type_constraints} );
     }
     elsif ($T->isa('Type::Tiny::Intersection')) {
-        my @keys = map { &key_of($_) } @{$T->type_constraints};
-        $keys = [ tduplicates(@keys) ];
+        return tduplicates( map { &tkeys($_) } @{$T->type_constraints} );
     }
     elsif ($T->is_strictly_subtype_of('Dict') && $T->has_parameters) {
         my @params = @{ $T->parameters };
@@ -118,50 +114,44 @@ sub key_of($) {
         for (my $i = 0; $i < @params; $i += 2) {
             push @keys => $params[$i];
         }
-        $keys = [ tuniq(@keys) ];
+        return tuniq(@keys);
     }
     elsif ($T->has_parent) {
-        $keys = [ &key_of($T->parent) ];
+        return &tkeys($T->parent);
     }
     else {
         # do nothing
     }
-
-    wantarray ? @{$keys} : $keys;
 }
 
 =pod
 
-=head2 value_of($Type)
+=head2 tvalues $Type
 
-C<value_of> function returns the values of a type.
+C<tvalues> function returns the values of a type.
 
 Given a Enum type, it returns the values of the type.
 
     my $T = Enum[qw(foo bar)];
-    my @values = value_of($T);
+    my @values = tvalues($T);
     # => ('foo', 'bar')
 
 Given a Dict type, it returns the values of the type.
 
     my $T = Dict[foo => Int, bar => Str];
-    my @values = value_of($T);
+    my @values = tvalues($T);
     # => (Int, Str)
 
 =cut
 
-sub value_of($) {
+sub tvalues($) {
     my $T = Types::TypeTiny::to_TypeTiny( shift );
 
-    my $values = [];
-
     if ($T->isa('Type::Tiny::Union')) {
-        my @values = map { &value_of($_) } @{$T->type_constraints};
-        $values = [ tuniq(@values) ];
+        return tuniq( map { &tvalues($_) } @{$T->type_constraints} );
     }
     elsif ($T->isa('Type::Tiny::Intersection')) {
-        my @values = map { &value_of($_) } @{$T->type_constraints};
-        $values = [ tduplicates(@values) ];
+        return tduplicates( map { &tvalues($_) } @{$T->type_constraints} );
     }
     elsif ($T->is_strictly_subtype_of('Dict') && $T->has_parameters) {
         my @params = @{ $T->parameters };
@@ -174,47 +164,27 @@ sub value_of($) {
         for (my $i = 1; $i < @params; $i += 2) {
             push @values => $params[$i];
         }
-        $values = [ tuniq(@values) ];
+        return tuniq(@values);
     }
     elsif ($T->is_strictly_subtype_of('Tuple') && $T->has_parameters) {
-        $values = [ @{ $T->parameters } ];
+        my @params = @{ $T->parameters };
+        if ($params[-1] && $params[-1]->is_strictly_subtype_of('Slurpy')) {
+            pop @params; # remove slurpy
+        }
+        return tuniq(@params);
     }
     elsif ($T->can('values')) {
-        $values = [ tuniq(@{ $T->values }) ];
+        return tuniq(@{ $T->values });
     }
     elsif ($T->can('value')) {
-        $values = [ $T->value ];
+        return ($T->value);
     }
     elsif ($T->has_parent) {
-        $values = [ &value_of($T->parent) ];
+        return &tvalues($T->parent);
     }
     else {
         # do nothing
     }
-
-    wantarray ? @{$values} : $values;
-}
-
-sub match_for {
-    my $Type = Types::TypeTiny::to_TypeTiny( shift );
-    my $matches = shift;
-
-    my @expected = value_of $Type;
-    my %expected_map = map { $_ => 1 } @expected;
-    my @keys = keys %$matches;
-
-    my @unexpected = grep { !exists $expected_map{$_} } @keys;
-    my @missing = grep { !exists $matches->{$_} } @expected;
-
-    if (@unexpected || @missing) {
-        my @errors;
-        push @errors, sprintf("unexpected keys: %s", join ',', @unexpected) if @unexpected;
-        push @errors, sprintf("missing keys: %s", join ',', @missing) if @missing;
-
-        croak sprintf('Invalid `match_for` %s: %s', $Type, join ', ', @errors);
-    }
-
-    return sub { $matches->{$_[0]} }
 }
 
 sub tuniq(@) {
@@ -243,6 +213,29 @@ sub tduplicates(@) {
     } @_;
 }
 
+sub match_for {
+    my $Type = Types::TypeTiny::to_TypeTiny( shift );
+    my $matches = shift;
+
+    my @expected = tvalues $Type;
+    my %expected_map = map { $_ => 1 } @expected;
+    my @keys = keys %$matches;
+
+    my @unexpected = grep { !exists $expected_map{$_} } @keys;
+    my @missing = grep { !exists $matches->{$_} } @expected;
+
+    if (@unexpected || @missing) {
+        my @errors;
+        push @errors, sprintf("unexpected keys: %s", join ',', @unexpected) if @unexpected;
+        push @errors, sprintf("missing keys: %s", join ',', @missing) if @missing;
+
+        croak sprintf('Invalid `match_for` %s: %s', $Type, join ', ', @errors);
+    }
+
+    return sub { $matches->{$_[0]} }
+}
+
+
 sub Never() {
     state $Never = type(name => 'Never', parent => Optional[sub { 0 }]);
 }
@@ -251,7 +244,7 @@ sub Record {
     my $param = Types::TypeTiny::to_TypeTiny( shift );
     my ($T, $U) = @{$param};
 
-    my @values = value_of $T;
+    my @values = tvalues $T;
     my @ref_values = grep { ref $_ } @values;
     if (@ref_values) {
         die "must be string type";
@@ -343,7 +336,7 @@ sub Required($) {
 sub Pick($$) {
     my ($T, $Keys) = _to_types(@_);
 
-    my %keymap = map { $_ => 1 } value_of $Keys;
+    my %keymap = map { $_ => 1 } tvalues $Keys;
 
     my $dict = dict_grep { delete $keymap{$a} } $T;
 
@@ -357,7 +350,7 @@ sub Pick($$) {
 sub Omit($$) {
     my ($T, $Keys) = _to_types(@_);
 
-    my %keymap = map { $_ => 1 } value_of $Keys;
+    my %keymap = map { $_ => 1 } tvalues $Keys;
     dict_grep { not exists $keymap{$a} } $T;
 }
 
@@ -368,21 +361,21 @@ sub union_grep(&$) {
         croak "must be Union type";
     }
 
-    my @items = map { ref $_ ? $_ : Eq[$_] } grep { $code->($_) } value_of($T);
+    my @items = map { ref $_ ? $_ : Eq[$_] } grep { $code->($_) } tvalues($T);
     @items ? union(\@items) : Never;
 }
 
 sub Exclude($$) {
     my ($T, $Keys) = _to_types(@_);
 
-    my %keymap = map { $_ => 1 } value_of $Keys;
+    my %keymap = map { $_ => 1 } tvalues $Keys;
     union_grep { not exists $keymap{$_} } $T;
 }
 
 sub Extract($$) {
     my ($T, $Keys) = _to_types(@_);
 
-    my %keymap = map { $_ => 1 } value_of $Keys;
+    my %keymap = map { $_ => 1 } tvalues $Keys;
     union_grep { exists $keymap{$_} } $T;
 }
 
