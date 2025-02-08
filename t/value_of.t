@@ -19,7 +19,7 @@ subtest 'Dict' => sub {
     my $Str = object { display_name => 'Str' };
     my $Any = object { display_name => 'Any' };
 
-    my $T = Dict[ a => Int, b => Str, c => Any];
+    my $T = Dict[ a => Int, b => Str, c => Any ];
 
     is [ value_of $T ], [$Int, $Str, $Any];
 

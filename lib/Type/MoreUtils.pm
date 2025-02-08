@@ -1,4 +1,32 @@
 package Type::MoreUtils;
+
+=pod
+
+=encoding utf-8
+
+=head1 name
+
+Type::MoreUtils - Provide the stuff missing in Type::Tiny
+
+=head1 SYNOPSIS
+
+    # import specific functions
+    use Type::MoreUtils qw( match_for );
+
+    # import everything
+    use Type::MoreUtils -all;
+
+    # import all type constraint utilities like Never, Record, Pick and so on
+    use Type::MoreUtils -types;
+
+=head1 DESCRIPTION
+
+B<Type::MoreUtils> provides some trivial but commonly needed functionality on lists which is not going to go into L<Type::Tiny>.
+
+=head1 FUNCTIONS
+
+=cut
+
 use strict;
 use warnings;
 use feature 'state';
@@ -7,7 +35,31 @@ our $VERSION = "0.01";
 
 use parent qw(Exporter::Tiny);
 
-our @EXPORT_OK = qw(key_of value_of match_for tuniq tduplicates Never Record Partial Required Pick Omit Exclude Extract DefinedUnion);
+our @EXPORT_FUNCTIONS = qw(
+    key_of
+    value_of
+    match_for
+    tuniq
+    tduplicates
+);
+
+our @EXPORT_TYPES = qw(
+    Never
+    Record
+    Partial
+    Required
+    Pick
+    Omit
+    Exclude
+    Extract
+);
+
+our @EXPORT_OK = ( @EXPORT_FUNCTIONS, @EXPORT_TYPES );
+
+our %EXPORT_TAGS = (
+    all   => \@EXPORT_OK,
+    types => \@EXPORT_TYPES,
+);
 
 use Carp qw(croak);
 use Scalar::Util qw(refaddr);
@@ -15,6 +67,30 @@ use Scalar::Util qw(refaddr);
 use Types::Standard -types;
 use Types::Equal qw(Eq);
 use Type::Utils qw(union type);
+
+=pod
+
+=head2 key_of($Type)
+
+C<key_of> function returns the keys of a Dict type.
+
+    my $T = Dict[foo => Int, bar => Str];
+    my @keys = key_of($T);
+    # => ('foo', 'bar')
+
+Given a union type, it will return the keys of all the types in the union.
+
+    my $T = Dict[foo => Int, bar => Str] | Dict[baz => Int, qux => Str];
+    my @keys = key_of($T);
+    # => ('foo', 'bar', 'baz', 'qux')
+
+Given an intersection type, it will return the keys of common keys in all the types in the intersection.
+
+    my $T = Dict[foo => Int, bar => Int] & Dict[bar => Str];
+    my @keys = key_of($T);
+    # => ('bar')
+
+=cut
 
 sub key_of($) {
     my $T = Types::TypeTiny::to_TypeTiny( shift );
@@ -51,6 +127,18 @@ sub key_of($) {
 
     wantarray ? @{$keys} : $keys;
 }
+
+=pod
+
+=head2 value_of($Type)
+
+C<value_of> function returns the values of a Dict type.
+
+    my $T = Dict[foo => Int, bar => Str];
+    my @values = value_of($T);
+    # => (Int, Str)
+
+=cut
 
 sub value_of($) {
     my $T = Types::TypeTiny::to_TypeTiny( shift );
@@ -288,32 +376,12 @@ sub Extract($$) {
     union_grep { exists $keymap{$_} } $T;
 }
 
-sub DefinedUnion($) {
-    my ($T) = _to_types(@_);
-    union_grep { defined $_ } $T;
-}
-
 sub _to_types {
     map { Types::TypeTiny::to_TypeTiny($_) } (ref $_[0]||'') eq 'ARRAY' ? @{$_[0]} : @_;
 }
 
 1;
 __END__
-
-=encoding utf-8
-
-=head1 NAME
-
-Type::MoreUtils - It's new $module
-
-=head1 SYNOPSIS
-
-    use Type::MoreUtils;
-
-=head1 DESCRIPTION
-
-Type::MoreUtils is ...
-
 =head1 LICENSE
 
 Copyright (C) kobaken.
