@@ -187,6 +187,35 @@ sub tvalues($) {
     }
 }
 
+=pod
+
+=head2 match_for $Type, \%matches
+
+C<match_for> function returns a coderef that matches the given type and returns the value corresponding to the key.
+
+    my $Lang = Enum[qw(English Japanese)];
+
+    my $hello = match_for($Lang, {
+        English  => 'Hello',
+        Japanese => 'こんにちは',
+    });
+    $hello->('English'); # => 'Hello'
+
+It throws an error if the given C<\%matches> does not satisfy C<$Type>. It is useful for defining a mapping between types and values.
+
+    my $bye = match_for($Lang, {
+        English  => 'Goodbye',
+    });
+    # => Missing keys error: Japanese
+
+    my $morning = match_for($Lang, {
+        English  => 'Good morning',
+        French   => 'Bonjour',
+    });
+    # => Unexpected keys error: French
+
+=cut
+
 sub match_for {
     my $Type = Types::TypeTiny::to_TypeTiny( shift );
     my $matches = shift;
