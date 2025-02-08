@@ -38,8 +38,6 @@ use parent qw(Exporter::Tiny);
 our @EXPORT_FUNCTIONS = qw(
     tkeys
     tvalues
-    tuniq
-    tduplicates
     match_for
 );
 
@@ -63,6 +61,8 @@ our %EXPORT_TAGS = (
 
 use Carp qw(croak);
 use Scalar::Util qw(refaddr);
+use List::Util qw(uniq);
+use List::MoreUtils::XS qw(duplicates);
 
 use Types::Standard -types;
 use Types::Equal qw(Eq);
@@ -98,10 +98,10 @@ sub tkeys($) {
     my $T = Types::TypeTiny::to_TypeTiny( shift );
 
     if ($T->isa('Type::Tiny::Union')) {
-        return tuniq( map { &tkeys($_) } @{$T->type_constraints} );
+        return uniq( map { &tkeys($_) } @{$T->type_constraints} );
     }
     elsif ($T->isa('Type::Tiny::Intersection')) {
-        return tduplicates( map { &tkeys($_) } @{$T->type_constraints} );
+        return duplicates( map { &tkeys($_) } @{$T->type_constraints} );
     }
     elsif ($T->is_strictly_subtype_of('Dict') && $T->has_parameters) {
         my @params = @{ $T->parameters };
@@ -114,7 +114,7 @@ sub tkeys($) {
         for (my $i = 0; $i < @params; $i += 2) {
             push @keys => $params[$i];
         }
-        return tuniq(@keys);
+        return uniq(@keys);
     }
     elsif ($T->has_parent) {
         return &tkeys($T->parent);
@@ -148,10 +148,10 @@ sub tvalues($) {
     my $T = Types::TypeTiny::to_TypeTiny( shift );
 
     if ($T->isa('Type::Tiny::Union')) {
-        return tuniq( map { &tvalues($_) } @{$T->type_constraints} );
+        return uniq( map { &tvalues($_) } @{$T->type_constraints} );
     }
     elsif ($T->isa('Type::Tiny::Intersection')) {
-        return tduplicates( map { &tvalues($_) } @{$T->type_constraints} );
+        return duplicates( map { &tvalues($_) } @{$T->type_constraints} );
     }
     elsif ($T->is_strictly_subtype_of('Dict') && $T->has_parameters) {
         my @params = @{ $T->parameters };
@@ -164,17 +164,17 @@ sub tvalues($) {
         for (my $i = 1; $i < @params; $i += 2) {
             push @values => $params[$i];
         }
-        return tuniq(@values);
+        return uniq(@values);
     }
     elsif ($T->is_strictly_subtype_of('Tuple') && $T->has_parameters) {
         my @params = @{ $T->parameters };
         if ($params[-1] && $params[-1]->is_strictly_subtype_of('Slurpy')) {
             pop @params; # remove slurpy
         }
-        return tuniq(@params);
+        return uniq(@params);
     }
     elsif ($T->can('values')) {
-        return tuniq(@{ $T->values });
+        return uniq(@{ $T->values });
     }
     elsif ($T->can('value')) {
         return ($T->value);
@@ -185,32 +185,6 @@ sub tvalues($) {
     else {
         # do nothing
     }
-}
-
-sub tuniq(@) {
-    my %seen;
-    my %seen_ref;
-    my $seen_undef;
-    my $k;
-    grep {
-          ref $_     ? not $seen_ref{$k = refaddr $_}++
-        : defined $_ ? not $seen{$k = $_}++
-        :              not $seen_undef++
-    } @_;
-}
-
-sub tduplicates(@) {
-    my %seen;
-    my %seen_ref;
-    my $seen_undef;
-    my $k;
-
-    grep { 1 < ( ref $_ ? $seen_ref{$k = refaddr $_} : defined $_ ? $seen{$k = $_} : $seen_undef) }
-    grep {
-            ref $_     ? not $seen_ref{$k = refaddr $_}++
-          : defined $_ ? not $seen{$k = $_}++
-          : not $seen_undef++
-    } @_;
 }
 
 sub match_for {
