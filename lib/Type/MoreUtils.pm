@@ -6,7 +6,7 @@ our $VERSION = "0.01";
 
 use parent qw(Exporter::Tiny);
 
-our @EXPORT_OK = qw(keyof valueof tuniq tduplicates Never Record Partial Required Pick Omit Exclude Extract DefinedUnion);
+our @EXPORT_OK = qw(keyof valueof match_for tuniq tduplicates Never Record Partial Required Pick Omit Exclude Extract DefinedUnion);
 
 use Carp qw(croak);
 use Scalar::Util qw(refaddr);
@@ -94,6 +94,28 @@ sub valueof($) {
     }
 
     wantarray ? @{$values} : $values;
+}
+
+sub match_for {
+    my $Type = Types::TypeTiny::to_TypeTiny( shift );
+    my $matches = shift;
+
+    my @expected = valueof $Type;
+    my %expected_map = map { $_ => 1 } @expected;
+    my @keys = keys %$matches;
+
+    my @unexpected = grep { !exists $expected_map{$_} } @keys;
+    my @missing = grep { !exists $matches->{$_} } @expected;
+
+    if (@unexpected || @missing) {
+        my @errors;
+        push @errors, sprintf("unexpected keys: %s", join ',', @unexpected) if @unexpected;
+        push @errors, sprintf("missing keys: %s", join ',', @missing) if @missing;
+
+        croak sprintf('Invalid `match_for` %s: %s', $Type, join ', ', @errors);
+    }
+
+    return sub { $matches->{$_[0]} }
 }
 
 sub tuniq(@) {
