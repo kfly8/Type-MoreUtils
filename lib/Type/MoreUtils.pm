@@ -1,12 +1,13 @@
 package Type::MoreUtils;
 use strict;
 use warnings;
+use feature 'state';
 
 our $VERSION = "0.01";
 
 use parent qw(Exporter::Tiny);
 
-our @EXPORT_OK = qw(keyof valueof match_for tuniq tduplicates Never Record Partial Required Pick Omit Exclude Extract DefinedUnion);
+our @EXPORT_OK = qw(key_of value_of match_for tuniq tduplicates Never Record Partial Required Pick Omit Exclude Extract DefinedUnion);
 
 use Carp qw(croak);
 use Scalar::Util qw(refaddr);
@@ -15,17 +16,17 @@ use Types::Standard -types;
 use Types::Equal qw(Eq);
 use Type::Utils qw(union type);
 
-sub keyof($) {
+sub key_of($) {
     my $T = Types::TypeTiny::to_TypeTiny( shift );
 
     my $keys = [];
 
     if ($T->isa('Type::Tiny::Union')) {
-        my @keys = map { &keyof($_) } @{$T->type_constraints};
+        my @keys = map { &key_of($_) } @{$T->type_constraints};
         $keys = [ tuniq(@keys) ];
     }
     elsif ($T->isa('Type::Tiny::Intersection')) {
-        my @keys = map { &keyof($_) } @{$T->type_constraints};
+        my @keys = map { &key_of($_) } @{$T->type_constraints};
         $keys = [ tduplicates(@keys) ];
     }
     elsif ($T->is_strictly_subtype_of('Dict') && $T->has_parameters) {
@@ -42,7 +43,7 @@ sub keyof($) {
         $keys = [ tuniq(@keys) ];
     }
     elsif ($T->has_parent) {
-        $keys = [ &keyof($T->parent) ];
+        $keys = [ &key_of($T->parent) ];
     }
     else {
         # do nothing
@@ -51,17 +52,17 @@ sub keyof($) {
     wantarray ? @{$keys} : $keys;
 }
 
-sub valueof($) {
+sub value_of($) {
     my $T = Types::TypeTiny::to_TypeTiny( shift );
 
     my $values = [];
 
     if ($T->isa('Type::Tiny::Union')) {
-        my @values = map { &valueof($_) } @{$T->type_constraints};
+        my @values = map { &value_of($_) } @{$T->type_constraints};
         $values = [ tuniq(@values) ];
     }
     elsif ($T->isa('Type::Tiny::Intersection')) {
-        my @values = map { &valueof($_) } @{$T->type_constraints};
+        my @values = map { &value_of($_) } @{$T->type_constraints};
         $values = [ tduplicates(@values) ];
     }
     elsif ($T->is_strictly_subtype_of('Dict') && $T->has_parameters) {
@@ -87,7 +88,7 @@ sub valueof($) {
         $values = [ $T->value ];
     }
     elsif ($T->has_parent) {
-        $values = [ &valueof($T->parent) ];
+        $values = [ &value_of($T->parent) ];
     }
     else {
         # do nothing
@@ -100,7 +101,7 @@ sub match_for {
     my $Type = Types::TypeTiny::to_TypeTiny( shift );
     my $matches = shift;
 
-    my @expected = valueof $Type;
+    my @expected = value_of $Type;
     my %expected_map = map { $_ => 1 } @expected;
     my @keys = keys %$matches;
 
@@ -144,21 +145,15 @@ sub tduplicates(@) {
     } @_;
 }
 
-# Index access
-sub IndexOf($$) {
-    ...
-}
-
-{
-    my $Never = type(name => 'Never', parent => Optional[sub { 0 }]);
-    sub Never() { $Never }
+sub Never() {
+    state $Never = type(name => 'Never', parent => Optional[sub { 0 }]);
 }
 
 sub Record {
     my $param = Types::TypeTiny::to_TypeTiny( shift );
     my ($T, $U) = @{$param};
 
-    my @values = valueof $T;
+    my @values = value_of $T;
     my @ref_values = grep { ref $_ } @values;
     if (@ref_values) {
         die "must be string type";
@@ -250,7 +245,7 @@ sub Required($) {
 sub Pick($$) {
     my ($T, $Keys) = _to_types(@_);
 
-    my %keymap = map { $_ => 1 } valueof $Keys;
+    my %keymap = map { $_ => 1 } value_of $Keys;
 
     my $dict = dict_grep { delete $keymap{$a} } $T;
 
@@ -264,7 +259,7 @@ sub Pick($$) {
 sub Omit($$) {
     my ($T, $Keys) = _to_types(@_);
 
-    my %keymap = map { $_ => 1 } valueof $Keys;
+    my %keymap = map { $_ => 1 } value_of $Keys;
     dict_grep { not exists $keymap{$a} } $T;
 }
 
@@ -275,21 +270,21 @@ sub union_grep(&$) {
         croak "must be Union type";
     }
 
-    my @items = map { ref $_ ? $_ : Eq[$_] } grep { $code->($_) } valueof($T);
+    my @items = map { ref $_ ? $_ : Eq[$_] } grep { $code->($_) } value_of($T);
     @items ? union(\@items) : Never;
 }
 
 sub Exclude($$) {
     my ($T, $Keys) = _to_types(@_);
 
-    my %keymap = map { $_ => 1 } valueof $Keys;
+    my %keymap = map { $_ => 1 } value_of $Keys;
     union_grep { not exists $keymap{$_} } $T;
 }
 
 sub Extract($$) {
     my ($T, $Keys) = _to_types(@_);
 
-    my %keymap = map { $_ => 1 } valueof $Keys;
+    my %keymap = map { $_ => 1 } value_of $Keys;
     union_grep { exists $keymap{$_} } $T;
 }
 

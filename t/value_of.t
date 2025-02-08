@@ -1,6 +1,6 @@
 use Test2::V0;
 
-use Type::MoreUtils qw(valueof);
+use Type::MoreUtils qw(value_of);
 
 use Types::Standard -types;
 
@@ -8,10 +8,10 @@ subtest 'Enum' => sub {
     my $expected = [qw(a b c)];
     my $T = Enum[qw(a b c)];
 
-    is [ valueof $T ], $expected;
+    is [ value_of $T ], $expected;
 
     my $PT = Type::Tiny->new(parent => $T);
-    is [ valueof $PT ], $expected;
+    is [ value_of $PT ], $expected;
 };
 
 subtest 'Dict' => sub {
@@ -21,13 +21,13 @@ subtest 'Dict' => sub {
 
     my $T = Dict[ a => Int, b => Str, c => Any];
 
-    is [ valueof $T ], [$Int, $Str, $Any];
+    is [ value_of $T ], [$Int, $Str, $Any];
 
     my $T2 = Type::Tiny->new(parent => $T);
-    is [ valueof $T2 ], [$Int, $Str, $Any];
+    is [ value_of $T2 ], [$Int, $Str, $Any];
 
     my $T3 = Dict[ a => Int, b => Int, c => Int, Slurpy[Str] ];
-    is [ valueof $T3 ], [$Int];
+    is [ value_of $T3 ], [$Int];
 };
 
 done_testing;
