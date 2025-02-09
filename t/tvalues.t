@@ -30,6 +30,17 @@ subtest 'Dict' => sub {
     is [ tvalues $T3 ], [$Int], 'Exclude Slurpy';
 };
 
+subtest 'Map' => sub {
+    my $Int = object { display_name => 'Int' };
+    my $Str = object { display_name => 'Str' };
+
+    my $T = Map[Int, Str];
+    is [ tvalues $T ], [$Str];
+
+    my $T2 = Type::Tiny->new(parent => $T);
+    is [ tvalues $T2 ], [$Str];
+};
+
 subtest 'Tuple' => sub {
     my $Int = object { display_name => 'Int' };
     my $Str = object { display_name => 'Str' };

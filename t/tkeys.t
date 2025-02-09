@@ -16,6 +16,18 @@ subtest 'Dict' => sub {
     is [ tkeys $T3 ], $expected;
 };
 
+subtest 'Map' => sub {
+    my $Int = object { display_name => 'Int' };
+    my $Str = object { display_name => 'Str' };
+    my $expected = [$Int];
+
+    my $T = Map[Int, Str];
+    is [ tkeys $T ], $expected;
+
+    my $T2 = Type::Tiny->new(parent => $T);
+    is [ tkeys $T2 ], $expected;
+};
+
 subtest 'Union' => sub {
     my $expected = [qw(a b c)];
 

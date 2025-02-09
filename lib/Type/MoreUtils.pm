@@ -80,6 +80,12 @@ Given a Dict type, it returns the keys of the type.
     tkeys $T
     # => ('foo', 'bar')
 
+Given a Map type, it returns the key of the type.
+
+    my $T = Map[Int, Str];
+    tkeys $T
+    # => (Int)
+
 Given a union type, it returns the keys of all the types in the union.
 
     my $T = Dict[foo => Int, bar => Str] | Dict[baz => Int];
@@ -116,6 +122,10 @@ sub tkeys($) {
         }
         return uniq(@keys);
     }
+    elsif ($T->is_strictly_subtype_of('Map') && $T->has_parameters) {
+        my @params = @{ $T->parameters };
+        return ($params[0]);
+    }
     elsif ($T->has_parent) {
         return &tkeys($T->parent);
     }
@@ -135,6 +145,12 @@ Given a Dict type, it returns the values of the type.
     my $T = Dict[foo => Int, bar => Str];
     tvalues $T
     # => (Int, Str)
+
+Given a Map type, it returns the value of the type.
+
+    my $T = Map[Int, Str];
+    tvalues $T
+    # => (Str)
 
 Given a Enum type, it returns the values of the type.
 
@@ -177,6 +193,10 @@ sub tvalues($) {
             push @values => $params[$i];
         }
         return uniq(@values);
+    }
+    elsif ($T->is_strictly_subtype_of('Map') && $T->has_parameters) {
+        my @params = @{ $T->parameters };
+        return ($params[1]);
     }
     elsif ($T->is_strictly_subtype_of('Tuple') && $T->has_parameters) {
         my @params = @{ $T->parameters };
