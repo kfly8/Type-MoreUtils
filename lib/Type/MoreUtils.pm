@@ -130,17 +130,29 @@ sub tkeys($) {
 
 C<tvalues> function returns the values of a type.
 
-Given a Enum type, it returns the values of the type.
-
-    my $T = Enum[qw(foo bar)];
-    my @values = tvalues($T);
-    # => ('foo', 'bar')
-
 Given a Dict type, it returns the values of the type.
 
     my $T = Dict[foo => Int, bar => Str];
-    my @values = tvalues($T);
+    tvalues $T
     # => (Int, Str)
+
+Given a Enum type, it returns the values of the type.
+
+    my $T = Enum[qw(foo bar)];
+    tvalues $T;
+    # => ('foo', 'bar')
+
+Given a L<Eq|Types::Equal> type, it returns the value of the type.
+
+    my $T = Eq['foo'];
+    tvalues $T
+    # => ('foo')
+
+Given a Union type, it returns the values of all the types in the union.
+
+    my $T = Eq['foo'] | Eq['bar'];
+    tvalues $T
+    # => ('foo', 'bar')
 
 =cut
 
